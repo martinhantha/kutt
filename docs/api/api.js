@@ -372,6 +372,9 @@ module.exports = {
           target: {
             type: "string"
           },
+          target2: {
+            type: "string"
+          },
           description: {
             type: "string"
           },

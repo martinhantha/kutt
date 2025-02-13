@@ -8,48 +8,30 @@ const env = require("../env");
 const CustomError = utils.CustomError;
 
 const selectable = [
-  "links.id",
-  "links.address",
-  "links.banned",
-  "links.created_at",
-  "links.domain_id",
-  "links.updated_at",
-  "links.password",
-  "links.description",
-  "links.expire_in",
-  "links.target",
-  "links.visit_count",
-  "links.user_id",
-  "links.uuid",
-  "domains.address as domain"
+  "targets.id",
+  "targets.language",
+  "targets.target",
 ];
 
 const selectable_admin = [
   ...selectable,
-  "users.email as email"
 ];
 
 function normalizeMatch(match) {
   const newMatch = { ...match };
 
-  if (newMatch.address) {
-    newMatch["links.address"] = newMatch.address;
-    delete newMatch.address;
+  if (newMatch.language) {
+    newMatch["targets.language"] = newMatch.language;
+    delete newMatch.language;
   }
-
-  if (newMatch.user_id) {
-    newMatch["links.user_id"] = newMatch.user_id;
-    delete newMatch.user_id;
+  if (newMatch.target) {
+    newMatch["targets.target"] = newMatch.target;
+    delete newMatch.target;
   }
 
   if (newMatch.uuid) {
-    newMatch["links.uuid"] = newMatch.uuid;
+    newMatch["targets.uuid"] = newMatch.uuid;
     delete newMatch.uuid;
-  }
-
-  if (newMatch.banned !== undefined) {
-    newMatch["links.banned"] = newMatch.banned;
-    delete newMatch.banned;
   }
 
   return newMatch;
@@ -114,21 +96,21 @@ async function totalAdmin(match, params) {
 }
 
 async function get(match, params) {
-  const query = knex("links")
+  const query = knex("targets")
     .select(...selectable)
     .where(normalizeMatch(match))
     .offset(params.skip)
     .limit(params.limit)
-    .orderBy("links.id", "desc");
+    .orderBy("targets.id", "desc");
   
   if (params?.search) {
     query[knex.compatibleILIKE](
-      knex.raw("concat_ws(' ', description, links.address, target, domains.address)"), 
+      knex.raw("concat_ws(' ', language, target)"), 
       "%" + params.search + "%"
     );
   }
   
-  query.leftJoin("domains", "links.domain_id", "domains.id");
+  query.leftJoin("links", "targets.link_id", "links.id");
 
   return query;
 }
@@ -178,7 +160,7 @@ async function find(match) {
     if (cachedLink) return JSON.parse(cachedLink);
   }
   
-  const link = await knex("links")
+  const link = await knex("targets")
     .select(...selectable)
     .where(normalizeMatch(match))
     .leftJoin("domains", "links.domain_id", "domains.id")
@@ -192,36 +174,26 @@ async function find(match) {
   return link;
 }
 
-async function create(params) {
-  let encryptedPassword = null;
+async function create(params, link_id = null) {
   
-  if (params.password) {
-    const salt = await bcrypt.genSalt(12);
-    encryptedPassword = await bcrypt.hash(params.password, salt);
-  }
-  
-  let [link] = await knex(
-    "links"
+  let [target] = await knex(
+    "targets"
   ).insert(
     {
-      password: encryptedPassword,
-      domain_id: params.domain_id || null,
-      user_id: params.user_id || null,
-      address: params.address,
-      description: params.description || null,
-      expire_in: params.expire_in || null,
+      link_id,
+      language: params.language,
+      target: params.target
     },
     "*"
   );
-  const target = await query.target.create(req.body, link);
 
   // mysql doesn't return the whole link, but rather the id number only
   // so we need to fetch the link ourselves
-  if (typeof link === "number") {
-    link = await knex("links").where("id", link).first();
+  if (typeof target === "number") {
+    target = await knex("targets").where("id", target).first();
   }
 
-  return link;
+  return target;
 }
 
 async function remove(match) {

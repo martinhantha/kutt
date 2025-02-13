@@ -97,15 +97,15 @@ async function getAdmin(req, res) {
 };
 
 async function create(req, res) {
-  const { reuse, password, customurl, description, target, fetched_domain, expire_in } = req.body;
+  const { reuse, password, customurl, description, fetched_domain, expire_in } = req.body;
   const domain_id = fetched_domain ? fetched_domain.id : null;
   
   const targetDomain = utils.removeWww(URL.parse(target).hostname);
+  const targetItem = await query.target.create(req.body);
   
   const tasks = await Promise.all([
     reuse &&
       query.link.find({
-        target,
         user_id: req.user.id,
         domain_id
       }),
